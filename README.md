@@ -1,8 +1,5 @@
 # 📈 Event-Driven Algorithmic Trading Engine
 
-[![Python 3.11+](https://shields.io)](https://python.org)
-[![Tests](https://shields.io)]()
-
 A modular, institutional-grade **Event-Driven Algorithmic Trading & Backtesting Engine** built in Python, featuring strict look-ahead bias prevention, volatility-based position sizing, realistic transaction cost modeling, SQLite market data persistence, and an interactive **Streamlit** analytics dashboard.
 
 ---
