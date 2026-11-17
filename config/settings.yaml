@@ -1,0 +1,121 @@
+# =============================================================================
+# config/settings.yaml
+# Algo Trading Engine - Configurazione centrale
+#
+# NOTE:
+#   - Nessuna chiave API reale va mai scritta in questo file. Le credenziali
+#     vengono lette da variabili d'ambiente (vedi sezione `broker`).
+#   - Le percentuali sono espresse in frazione decimale (0.01 = 1%).
+#   - I costi sono espressi in basis points (bps): 1 bps = 0.01% = 0.0001.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# 1. GENERAL / BACKTEST
+# -----------------------------------------------------------------------------
+general:
+  run_mode: backtest              # backtest | paper | live
+  base_currency: USD              # Valuta base del portafoglio
+  initial_capital: 100000.0       # Capitale iniziale in valuta base
+  random_seed: 42                 # Riproducibilità (es. componenti stocastiche)
+  log_level: INFO                 # DEBUG | INFO | WARNING | ERROR
+
+backtest:
+  start_date: "2015-01-01"        # Inizio backtest (inclusivo, formato ISO)
+  end_date: "2024-12-31"          # Fine backtest (inclusivo, formato ISO)
+  warmup_bars: 200                # Barre di riscaldamento: nessun segnale prima
+                                  # di aver accumulato abbastanza storico per gli
+                                  # indicatori (>= max finestra strategia/ATR)
+  fill_timing: next_open          # Look-ahead safe: un segnale alla chiusura
+                                  # della barra t viene eseguito all'apertura
+                                  # della barra t+1. (next_open | next_close)
+
+database:
+  path: "data/market_data.db"     # Database SQLite con i dati di mercato
+  raw_data_dir: "data/raw"        # Cartella per i file grezzi scaricati
+
+# -----------------------------------------------------------------------------
+# 2. UNIVERSE / ASSETS
+# -----------------------------------------------------------------------------
+universe:
+  symbols:                        # Ticker di test
+    - SPY
+    - QQQ
+    - GLD
+    - AAPL
+  timeframe: "1d"                 # Granularità barre: 1m | 5m | 15m | 1h | 1d
+  price_adjustment: adjusted      # Prezzi aggiustati per split/dividendi
+                                  # (adjusted | raw)
+
+# -----------------------------------------------------------------------------
+# 3. EXECUTION & COSTS
+# -----------------------------------------------------------------------------
+execution:
+  order_type: market              # Tipo di ordine di default (market | limit)
+  allow_short: false              # Vendite allo scoperto consentite?
+  allow_fractional_shares: false  # Se false, le quantità vengono arrotondate
+                                  # per difetto a numero intero di azioni
+
+  commission:
+    model: per_share              # per_share | percentage | fixed
+    per_share: 0.005              # USD per azione eseguita
+    min_per_order: 1.00           # Commissione minima per ordine (USD)
+    max_pct_of_trade_value: 0.01  # Tetto: 1% del controvalore dell'ordine
+    percentage_bps: 1.0           # Usato solo se model = percentage
+    fixed_per_order: 1.00         # Usato solo se model = fixed
+
+  slippage:
+    model: fixed_bps              # fixed_bps | volume_impact
+    fixed_bps: 5.0                # Slippage fisso: 5 bps, sempre sfavorevole
+                                  # (compra a prezzo più alto, vende a più basso)
+    # Parametri usati solo se model = volume_impact:
+    volume_impact_coeff: 0.1      # Coefficiente di impatto proporzionale alla
+                                  # partecipazione sul volume della barra
+    max_participation_rate: 0.10  # Max 10% del volume della barra eseguibile
+
+# -----------------------------------------------------------------------------
+# 4. RISK MANAGEMENT
+# -----------------------------------------------------------------------------
+risk:
+  max_risk_per_trade: 0.01        # Max 1% del capitale a rischio per singolo trade
+  max_position_pct: 0.20          # Esposizione max per singolo asset: 20% dell'equity
+  max_gross_exposure: 1.00        # Esposizione lorda totale max (1.0 = 100%, no leva)
+  max_open_positions: 4           # Numero massimo di posizioni aperte contemporaneamente
+
+  max_drawdown_pct: 0.15          # Kill-switch: stop al raggiungimento del 15% di
+                                  # drawdown dal massimo storico dell'equity
+  kill_switch_action: liquidate_and_halt   # liquidate_and_halt | halt_only
+
+  position_sizing:
+    method: atr                   # atr | fixed_fraction | fixed_shares
+    atr_window: 14                # Finestra di calcolo dell'ATR
+    atr_stop_multiple: 2.0        # Distanza dello stop = 2 x ATR
+                                  # Quantità = (equity * max_risk_per_trade)
+                                  #            / (atr_stop_multiple * ATR)
+                                  # poi limitata da max_position_pct
+    fixed_fraction: 0.10          # Usato solo se method = fixed_fraction
+    fixed_shares: 100             # Usato solo se method = fixed_shares
+
+# -----------------------------------------------------------------------------
+# 5. STRATEGY PARAMETERS
+# -----------------------------------------------------------------------------
+strategy:
+  name: mean_reversion            # Strategia attiva (mappa su src/strategy/)
+  mean_reversion:
+    lookback_window: 20           # Finestra per media e deviazione standard
+    zscore_entry: -2.0            # Segnale LONG se Z-score <= -2.0
+    zscore_exit: 0.0              # Uscita quando Z-score torna a >= 0.0
+    zscore_stop: -3.5             # Uscita di emergenza se Z-score <= -3.5
+    max_holding_bars: 10          # Uscita temporale dopo N barre
+    use_trend_filter: true        # Entra solo se il trend di lungo periodo è rialzista
+    trend_filter_window: 200      # SMA di lungo periodo per il filtro di trend
+
+# -----------------------------------------------------------------------------
+# BROKER / PAPER TRADING (solo segnaposto, nessuna credenziale reale)
+# -----------------------------------------------------------------------------
+broker:
+  provider: alpaca
+  paper_trading: true             # Mantieni true finché non validato
+  base_url: "https://paper-api.alpaca.markets"
+  # Le chiavi vengono lette da variabili d'ambiente, MAI scritte qui:
+  api_key_env: "ALPACA_API_KEY"         # export ALPACA_API_KEY="..."
+  api_secret_env: "ALPACA_API_SECRET"   # export ALPACA_API_SECRET="..."
